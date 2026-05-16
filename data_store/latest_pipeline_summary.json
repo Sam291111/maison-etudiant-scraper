@@ -1,0 +1,28 @@
+{
+  "pipeline_run_id": 1,
+  "generated_at": "2026-05-16T23:05:26.204039+00:00",
+  "sources_ingested": [
+    "immojeune",
+    "la_carte_des_colocs",
+    "location_etudiant",
+    "studapart"
+  ],
+  "status_counts_by_source": {
+    "immojeune": {
+      "new": 12
+    },
+    "la_carte_des_colocs": {
+      "new": 59
+    },
+    "location_etudiant": {
+      "new": 5
+    },
+    "studapart": {
+      "new": 166
+    }
+  },
+  "active_count": 242,
+  "new_count": 242,
+  "updated_count": 0,
+  "removed_count": 0
+}

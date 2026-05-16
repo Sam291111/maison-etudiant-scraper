@@ -19,6 +19,10 @@ This project now has four source scrapers plus a combined listing store and a sm
   Small shared helpers and the common normalized listing shape.
 - `listing_store/`
   Cross-source SQLite store, pipeline runner, exports, and web dashboard.
+- `data_store/`
+  Tracked persistent store for GitHub Actions runs.
+- `docs/`
+  Static GitHub Pages dashboard and published data/downloads.
 
 ## Useful commands
 
@@ -43,6 +47,12 @@ Run the full pipeline end to end:
 python3 listing_store/run_pipeline.py
 ```
 
+Publish the static Pages assets locally from tracked data:
+
+```bash
+python3 listing_store/publish_pages.py --input-dir data_store --output-dir docs
+```
+
 Serve the dashboard locally:
 
 ```bash
@@ -51,7 +61,7 @@ python3 listing_store/web_app.py
 
 ## Combined outputs
 
-The combined store writes to `listing_store/outputs/`:
+Local ad-hoc runs write to `listing_store/outputs/`:
 
 - `listings.sqlite3`
 - `lyon_master_listings.xlsx`
@@ -60,34 +70,50 @@ The combined store writes to `listing_store/outputs/`:
 - `latest_pipeline_summary.json`
 - `latest_refresh_status.json`
 
-## Render deployment shape
+GitHub Actions refresh runs write the tracked store to `data_store/`:
 
-The Render-friendly setup is:
+- `listings.sqlite3`
+- `lyon_master_listings.xlsx`
+- `active_listings.csv`
+- `active_listings.json`
+- `latest_pipeline_summary.json`
 
-1. A web service using the included `Dockerfile`
-2. A persistent disk mounted at `/app/listing_store/outputs`
-3. A cron job that sends `POST /admin/refresh` to the web service with `X-Refresh-Token`
+## Recommended Free Deployment
 
-The dashboard exposes:
+The preferred free setup is:
+
+1. `Refresh Listing Data` GitHub Actions workflow
+2. `Deploy Pages` GitHub Actions workflow
+3. GitHub Pages serving the `docs/` folder output
+
+The refresh workflow:
+
+- runs all four scrapers on a daily schedule
+- updates the tracked SQLite store in `data_store/`
+- republishes `docs/data/` and `docs/downloads/`
+- commits refreshed data back to `main`
+
+The Pages deploy workflow:
+
+- deploys the static `docs/` folder to GitHub Pages whenever it changes
+
+### One-time GitHub setup
+
+1. In repo `Settings` -> `Actions` -> `General`, allow workflows to have read and write permissions.
+2. In repo `Settings` -> `Pages`, set the source to `GitHub Actions`.
+3. Optionally run `Refresh Listing Data` manually once to seed the first full snapshot.
+
+### Static dashboard URLs
+
+Once Pages is live, the dashboard exposes:
 
 - `/`
   Sortable listing table
-- `/api/listings`
+- `/data/active_listings.json`
   Active merged listings as JSON
-- `/api/summary`
+- `/data/latest_pipeline_summary.json`
   Latest pipeline summary
-- `/api/refresh-status`
-  Current or latest refresh run status
-- `/download/master.xlsx`
+- `/downloads/lyon_master_listings.xlsx`
   Combined workbook
-- `/download/active.csv`
+- `/downloads/active_listings.csv`
   Combined CSV
-- `/download/active.json`
-  Combined JSON
-
-Example cron trigger:
-
-```bash
-curl -X POST "https://YOUR-RENDER-APP.onrender.com/admin/refresh" \
-  -H "X-Refresh-Token: YOUR_REFRESH_TOKEN"
-```

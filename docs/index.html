@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lyon Shared Accommodation</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Maison Etudiant</p>
+      <h1>Lyon Shared Accommodation Dashboard</h1>
+      <p class="lead">Daily combined listings from ImmoJeune, La Carte des Colocs, Location Étudiant, and Studapart.</p>
+    </section>
+
+    <section class="stats" id="stats">
+      <article class="card">
+        <p class="label">Active Listings</p>
+        <p class="value" id="activeCount">-</p>
+      </article>
+      <article class="card">
+        <p class="label">Sources</p>
+        <p class="value" id="sourceCount">-</p>
+      </article>
+      <article class="card">
+        <p class="label">New In Latest Run</p>
+        <p class="value" id="newCount">-</p>
+      </article>
+      <article class="card">
+        <p class="label">Updated In Latest Run</p>
+        <p class="value" id="updatedCount">-</p>
+      </article>
+      <article class="card">
+        <p class="label">Removed In Latest Run</p>
+        <p class="value" id="removedCount">-</p>
+      </article>
+      <article class="card">
+        <p class="label">Last Refresh</p>
+        <p class="value small" id="lastRefresh">-</p>
+      </article>
+    </section>
+
+    <section class="toolbar">
+      <input id="searchInput" type="search" placeholder="Search by title, address, postcode, city">
+      <select id="sourceFilter">
+        <option value="">All sources</option>
+      </select>
+      <select id="statusFilter">
+        <option value="">Any status</option>
+        <option value="new">new</option>
+        <option value="updated">updated</option>
+        <option value="unchanged">unchanged</option>
+      </select>
+      <div class="actions">
+        <a class="button" href="./downloads/lyon_master_listings.xlsx">Download XLSX</a>
+        <a class="button secondary" href="./downloads/active_listings.csv">Download CSV</a>
+        <a class="button secondary" href="./data/active_listings.json">JSON</a>
+      </div>
+    </section>
+
+    <p class="source-note" id="sourceBreakdown"></p>
+
+    <section class="table-shell">
+      <table id="listingTable">
+        <thead>
+          <tr>
+            <th data-key="source">Source</th>
+            <th data-key="title">Title</th>
+            <th data-key="price_eur">Price EUR</th>
+            <th data-key="postcode">Postcode</th>
+            <th data-key="city">City</th>
+            <th data-key="address">Address</th>
+            <th data-key="availability">Availability</th>
+            <th data-key="extra_summary">Summary</th>
+            <th data-key="first_seen_at">First Seen</th>
+            <th data-key="last_seen_at">Last Seen</th>
+            <th data-key="url">Link</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

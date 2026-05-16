@@ -1,0 +1,67 @@
+name: Refresh Listing Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run ImmoJeune scraper
+        run: python scrapers/immojeune/scraper.py --max-pages 6
+
+      - name: Run La Carte des Colocs scraper
+        run: python scrapers/la_carte_des_colocs/scraper.py
+
+      - name: Run Location Étudiant scraper
+        run: python scrapers/location_etudiant/scraper.py
+
+      - name: Run Studapart scraper
+        run: python scrapers/studapart/scraper.py
+
+      - name: Update tracked listing store
+        run: |
+          mkdir -p data_store
+          python listing_store/update_store.py \
+            --db data_store/listings.sqlite3 \
+            --workbook data_store/lyon_master_listings.xlsx \
+            --summary-json data_store/latest_pipeline_summary.json \
+            --active-json data_store/active_listings.json \
+            --active-csv data_store/active_listings.csv
+
+      - name: Publish static Pages assets
+        run: python listing_store/publish_pages.py --input-dir data_store --output-dir docs
+
+      - name: Commit refreshed data
+        run: |
+          if [[ -n "$(git status --porcelain data_store docs)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data_store docs
+            git commit -m "Automated listing refresh"
+            git push
+          else
+            echo "No tracked data changes to commit."
+          fi
