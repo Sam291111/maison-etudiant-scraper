@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: lyon-accommodation-dashboard
+    runtime: docker
+    plan: starter
+    autoDeploy: false
+    disk:
+      name: listing-store
+      mountPath: /app/listing_store/outputs
+      sizeGB: 1
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: REFRESH_TOKEN
+        generateValue: true

@@ -1,0 +1,9 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+listing_store/outputs/
+scrapers/*/outputs/
+scrapers/*/raw_html/
