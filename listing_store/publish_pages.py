@@ -53,14 +53,23 @@ def main() -> int:
     active_csv = input_dir / "active_listings.csv"
     summary_json = input_dir / "latest_pipeline_summary.json"
     workbook = input_dir / "lyon_master_listings.xlsx"
+    new_json = input_dir / "new_in_run.json"
+    updated_json = input_dir / "updated_in_run.json"
+    removed_json = input_dir / "removed_in_run.json"
 
     copy_file(active_json, data_dir / "active_listings.json")
     copy_file(summary_json, data_dir / "latest_pipeline_summary.json")
+    copy_file(new_json, data_dir / "new_in_run.json")
+    copy_file(updated_json, data_dir / "updated_in_run.json")
+    copy_file(removed_json, data_dir / "removed_in_run.json")
     copy_file(active_csv, download_dir / "active_listings.csv")
     copy_file(workbook, download_dir / "lyon_master_listings.xlsx")
 
     active_payload = json.loads(active_json.read_text(encoding="utf-8"))
     summary_payload = json.loads(summary_json.read_text(encoding="utf-8"))
+    new_payload = json.loads(new_json.read_text(encoding="utf-8"))
+    updated_payload = json.loads(updated_json.read_text(encoding="utf-8"))
+    removed_payload = json.loads(removed_json.read_text(encoding="utf-8"))
 
     source_counts: dict[str, int] = {}
     for row in active_payload:
@@ -70,6 +79,9 @@ def main() -> int:
     metadata: dict[str, Any] = {
         "generated_at": utc_now_iso(),
         "active_count": len(active_payload),
+        "new_count": len(new_payload),
+        "updated_count": len(updated_payload),
+        "removed_count": len(removed_payload),
         "source_counts": source_counts,
         "summary": summary_payload,
     }

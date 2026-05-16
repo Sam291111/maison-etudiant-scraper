@@ -141,6 +141,72 @@ select {
   margin: 12px 0 14px;
 }
 
+.highlights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.change-list {
+  display: grid;
+  gap: 10px;
+}
+
+.change-item {
+  padding: 12px;
+  border: 1px solid #eadfd1;
+  border-radius: 12px;
+  background: #fffaf3;
+}
+
+.change-item a {
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.change-line {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.empty-state {
+  color: var(--muted);
+}
+
+.map-card {
+  margin-bottom: 14px;
+}
+
+#map {
+  width: 100%;
+  height: 440px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #eadfd1;
+}
+
 .table-shell {
   overflow: auto;
 }
@@ -173,6 +239,10 @@ td a {
 
 @media (max-width: 980px) {
   .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .highlights {
     grid-template-columns: 1fr;
   }
 

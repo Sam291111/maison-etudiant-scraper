@@ -37,6 +37,9 @@ WORKBOOK_PATH = OUTPUT_DIR / "lyon_master_listings.xlsx"
 SUMMARY_JSON_PATH = OUTPUT_DIR / "latest_pipeline_summary.json"
 ACTIVE_JSON_PATH = OUTPUT_DIR / "active_listings.json"
 ACTIVE_CSV_PATH = OUTPUT_DIR / "active_listings.csv"
+NEW_JSON_PATH = OUTPUT_DIR / "new_in_run.json"
+UPDATED_JSON_PATH = OUTPUT_DIR / "updated_in_run.json"
+REMOVED_JSON_PATH = OUTPUT_DIR / "removed_in_run.json"
 
 
 EXPECTED_OUTPUTS = {
@@ -683,6 +686,11 @@ def export_active_csv(path: Path, active: list[dict[str, Any]]) -> None:
             )
 
 
+def export_rows_json(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def build_summary(
     pipeline_run_id: int,
     bundles: list[PayloadBundle],
@@ -711,6 +719,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--summary-json", default=str(SUMMARY_JSON_PATH))
     parser.add_argument("--active-json", default=str(ACTIVE_JSON_PATH))
     parser.add_argument("--active-csv", default=str(ACTIVE_CSV_PATH))
+    parser.add_argument("--new-json", default=str(NEW_JSON_PATH))
+    parser.add_argument("--updated-json", default=str(UPDATED_JSON_PATH))
+    parser.add_argument("--removed-json", default=str(REMOVED_JSON_PATH))
     return parser.parse_args()
 
 
@@ -726,6 +737,9 @@ def main() -> int:
     summary_json_path = Path(args.summary_json).expanduser().resolve()
     active_json_path = Path(args.active_json).expanduser().resolve()
     active_csv_path = Path(args.active_csv).expanduser().resolve()
+    new_json_path = Path(args.new_json).expanduser().resolve()
+    updated_json_path = Path(args.updated_json).expanduser().resolve()
+    removed_json_path = Path(args.removed_json).expanduser().resolve()
 
     conn = sqlite3.connect(db_path)
     try:
@@ -780,6 +794,9 @@ def main() -> int:
         summary_json_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         export_active_json(active_json_path, active)
         export_active_csv(active_csv_path, active)
+        export_rows_json(new_json_path, new_rows)
+        export_rows_json(updated_json_path, updated_rows)
+        export_rows_json(removed_json_path, removed_rows)
     finally:
         conn.close()
 
@@ -788,6 +805,9 @@ def main() -> int:
     print(f"Saved pipeline summary: {summary_json_path}")
     print(f"Saved active listings JSON: {active_json_path}")
     print(f"Saved active listings CSV: {active_csv_path}")
+    print(f"Saved new listings JSON: {new_json_path}")
+    print(f"Saved updated listings JSON: {updated_json_path}")
+    print(f"Saved removed listings JSON: {removed_json_path}")
     return 0
 
 

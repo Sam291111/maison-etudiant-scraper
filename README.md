@@ -89,9 +89,11 @@ The preferred free setup is:
 The refresh workflow:
 
 - runs all four scrapers on a daily schedule
+- runs ImmoJeune without a fixed page cap, so it keeps going until the site stops returning result cards
 - updates the tracked SQLite store in `data_store/`
 - republishes `docs/data/` and `docs/downloads/`
 - commits refreshed data back to `main`
+- opens GitHub issue alerts when new listings appear, listings disappear, or the refresh workflow fails
 
 The Pages deploy workflow:
 
@@ -108,11 +110,15 @@ The Pages deploy workflow:
 Once Pages is live, the dashboard exposes:
 
 - `/`
-  Sortable listing table
+  Sortable listing table plus latest new/removed panels and a map view for listings with coordinates
 - `/data/active_listings.json`
   Active merged listings as JSON
 - `/data/latest_pipeline_summary.json`
   Latest pipeline summary
+- `/data/new_in_run.json`
+  Listings first seen in the latest run
+- `/data/removed_in_run.json`
+  Listings missing in the latest run
 - `/downloads/lyon_master_listings.xlsx`
   Combined workbook
 - `/downloads/active_listings.csv`

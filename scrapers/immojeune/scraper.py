@@ -50,7 +50,7 @@ from shared.listing_schema import NormalizedListing
 OUTPUT_DIR = BASE_DIR / "outputs"
 OUTPUT_FILE = str(OUTPUT_DIR / "immojeune_lyon_shared_housing.xlsx")
 JSON_OUTPUT_FILE = str(OUTPUT_DIR / "immojeune_lyon_shared_housing.json")
-DEFAULT_MAX_PAGES = 6
+DEFAULT_MAX_PAGES = 0
 REQUEST_DELAY = 1.0
 TIMEOUT_SECONDS = 30
 GEOCODER_URL = "https://data.geopf.fr/geocodage/search"
@@ -341,6 +341,11 @@ def parse_listing_cards(html: str, source_label: str) -> list[dict]:
     return parsed
 
 
+def count_result_cards(html: str) -> int:
+    soup = BeautifulSoup(html, "html.parser")
+    return len(soup.select("#resultsajax .card.col"))
+
+
 def count_people(description: str, role: str) -> int:
     return len(re.findall(rf"\b(?:Male|Female),\s*{role}\b", description, re.I))
 
@@ -563,18 +568,28 @@ def geocode_listing(listing: Listing, cache: dict[str, tuple[float, float, str, 
     return listing
 
 
-def scrape_source(source_path: str, source_label: str, max_pages: int) -> list[dict]:
+def scrape_source(source_path: str, source_label: str, max_pages: int) -> tuple[list[dict], dict]:
     found: list[dict] = []
     seen_urls: set[str] = set()
+    page_num = 1
+    pages_fetched = 0
+    total_result_cards = 0
+    stop_reason = "max_pages_reached"
 
-    for page_num in range(1, max_pages + 1):
+    while True:
+        if max_pages > 0 and page_num > max_pages:
+            break
         url = build_search_url(source_path, page_num)
         print(f"  {source_label} page {page_num}: {url}")
         html = fetch_html(url)
+        result_card_count = count_result_cards(html)
+        total_result_cards += result_card_count
         listings = parse_listing_cards(html, source_label)
+        pages_fetched += 1
 
-        if not listings:
-            print("    No shared listings found on this page, stopping this source.")
+        if result_card_count == 0:
+            print("    No result cards found on this page, stopping this source.")
+            stop_reason = "empty_results_page"
             break
 
         new_count = 0
@@ -585,10 +600,17 @@ def scrape_source(source_path: str, source_label: str, max_pages: int) -> list[d
             found.append(listing)
             new_count += 1
 
-        print(f"    {new_count} new shared listing(s)")
+        print(f"    {new_count} new shared listing(s) from {result_card_count} result card(s)")
         time.sleep(REQUEST_DELAY)
+        page_num += 1
 
-    return found
+    return found, {
+        "pages_fetched": pages_fetched,
+        "max_pages": max_pages,
+        "stop_reason": stop_reason,
+        "result_cards_seen": total_result_cards,
+        "listing_count": len(found),
+    }
 
 
 def enrich_listings(card_listings: list[dict]) -> list[Listing]:
@@ -801,16 +823,18 @@ def build_excel(listings: list[Listing], output_file: str) -> None:
     wb.save(output_file)
 
 
-def scrape_all(max_pages: int) -> list[Listing]:
+def scrape_all(max_pages: int) -> tuple[list[Listing], dict[str, dict]]:
     merged_by_url: dict[str, dict] = {}
+    source_scan_meta: dict[str, dict] = {}
 
     print("Collecting filtered search pages...")
     for source_path, source_label in SOURCE_PATHS:
         try:
-            source_cards = scrape_source(source_path, source_label, max_pages=max_pages)
+            source_cards, source_meta = scrape_source(source_path, source_label, max_pages=max_pages)
         except Exception as exc:
             print(f"  Failed to scrape {source_label}: {exc}")
             continue
+        source_scan_meta[source_path] = source_meta
         for card in source_cards:
             existing = merged_by_url.get(card["url"])
             if existing:
@@ -824,12 +848,12 @@ def scrape_all(max_pages: int) -> list[Listing]:
     print(f"\nFound {len(merged_cards)} unique shared listing card(s)")
     enriched = enrich_listings(merged_cards)
     enriched.sort(key=sort_key)
-    return enriched
+    return enriched, source_scan_meta
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Scrape shared housing in Lyon from ImmoJeune.")
-    parser.add_argument("--max-pages", type=int, default=DEFAULT_MAX_PAGES, help="Pages per source to scan.")
+    parser.add_argument("--max-pages", type=int, default=DEFAULT_MAX_PAGES, help="Pages per source to scan. 0 means continue until the site stops returning result cards.")
     parser.add_argument("--output", default=OUTPUT_FILE, help="Excel output filename.")
     parser.add_argument("--json-output", default=JSON_OUTPUT_FILE, help="JSON output filename.")
     return parser.parse_args()
@@ -838,7 +862,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     print("Scraping ImmoJeune Lyon shared housing...")
-    listings = scrape_all(max_pages=args.max_pages)
+    listings, source_scan_meta = scrape_all(max_pages=args.max_pages)
     if not listings:
         raise SystemExit("No shared listings found.")
     build_excel(listings, args.output)
@@ -849,6 +873,7 @@ def main() -> int:
             "max_pages": args.max_pages,
             "listing_count": len(listings),
             "strong_student_fit_count": sum(1 for item in listings if item.student_label == "Strong student fit"),
+            "source_scan_meta": source_scan_meta,
         },
         "listings": [item.explicit_dict() for item in listings],
         "normalized_listings": [item.normalized().to_dict() for item in listings],

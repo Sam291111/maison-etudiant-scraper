@@ -5,8 +5,14 @@ on:
   schedule:
     - cron: "15 6 * * *"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: write
+  issues: write
+  pages: write
+  id-token: write
 
 jobs:
   refresh:
@@ -30,7 +36,7 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run ImmoJeune scraper
-        run: python scrapers/immojeune/scraper.py --max-pages 6
+        run: python scrapers/immojeune/scraper.py
 
       - name: Run La Carte des Colocs scraper
         run: python scrapers/la_carte_des_colocs/scraper.py
@@ -49,10 +55,21 @@ jobs:
             --workbook data_store/lyon_master_listings.xlsx \
             --summary-json data_store/latest_pipeline_summary.json \
             --active-json data_store/active_listings.json \
-            --active-csv data_store/active_listings.csv
+            --active-csv data_store/active_listings.csv \
+            --new-json data_store/new_in_run.json \
+            --updated-json data_store/updated_in_run.json \
+            --removed-json data_store/removed_in_run.json
 
       - name: Publish static Pages assets
         run: python listing_store/publish_pages.py --input-dir data_store --output-dir docs
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
 
       - name: Commit refreshed data
         run: |
@@ -65,3 +82,30 @@ jobs:
           else
             echo "No tracked data changes to commit."
           fi
+
+      - name: Create listing change alert issue
+        if: success()
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python listing_store/github_alerts.py --mode changes --data-dir data_store
+
+      - name: Create workflow failure alert issue
+        if: failure()
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python listing_store/github_alerts.py --mode failure --data-dir data_store
+
+  deploy:
+    if: success()
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
