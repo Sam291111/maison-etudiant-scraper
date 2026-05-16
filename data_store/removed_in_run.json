@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "listing_uid": "studapart::bfe24f19-1702-481f-b8b9-a41d13509ed5",
+    "source": "studapart",
+    "status": "removed",
+    "seen_at": "2026-05-16T23:40:31.011895+00:00",
+    "title": "Chambre à Lyon - Rue Villebois Mareuil, Monchat",
+    "url": "https://www.studapart.com",
+    "price_eur": 670,
+    "postcode": "69003",
+    "address": "12 Rue Villebois Mareuil 69003 Lyon FR",
+    "availability": "2026-05-15",
+    "extra_summary": "rental | apartment | 2 | rented by room"
+  }
+]
