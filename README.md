@@ -1,3 +1,6 @@
+ENTIRELY AI GENERATED - CODE MAY NOT WORK IN (NEAR)FUTURE 
+
+
 # Accommodation Scrapers
 
 This project now has four source scrapers plus a combined listing store and a small web dashboard layer.
