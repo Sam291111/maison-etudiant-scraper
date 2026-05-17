@@ -28,7 +28,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import quote_plus, urljoin
+from urllib.request import Request, urlopen
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -54,6 +55,14 @@ DEFAULT_OUTPUT = OUTPUT_DIR / "la_carte_des_colocs_lyon.xlsx"
 DEFAULT_JSON_OUTPUT = OUTPUT_DIR / "la_carte_des_colocs_lyon.json"
 RAW_CAPTURE_DIR = OUTPUT_DIR / "raw_capture"
 WAIT_MS = 8_000
+GEOCODER_URL = "https://data.geopf.fr/geocodage/search"
+GEOCODER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+}
 
 SHARED_TYPES = {"flatshare", "coliving", "homestay", "student_room", "student_residence", "sublet"}
 STUDENT_PATTERNS = [
@@ -101,6 +110,7 @@ class Listing:
     city: str
     street: str
     postcode: str | None
+    postcode_source: str
     company_name: str
     description: str
     female_only: str
@@ -147,6 +157,7 @@ class Listing:
             "city": self.city,
             "street": self.street,
             "postcode": self.postcode,
+            "postcode_source": self.postcode_source,
             "company_name": self.company_name,
             "description": self.description,
             "raw_thumb_url": self.raw_thumb_url,
@@ -190,10 +201,80 @@ def looks_shared(record: dict[str, Any]) -> bool:
     return False
 
 
-def infer_postcode(street: str, city: str, description: str) -> str | None:
-    haystack = " ".join([street, city, description])
+def fetch_json(url: str) -> dict[str, Any]:
+    request = Request(url, headers=GEOCODER_HEADERS)
+    with urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8", errors="replace"))
+
+
+def arrondissement_to_postcode(text: str) -> str | None:
+    normalized = text.lower().replace("ème", "e").replace("eme", "e")
+    match = re.search(r"\blyon(?:\s+|-)(1er|[1-9]e?|[1-9])\b", normalized)
+    if not match:
+        return None
+    raw = match.group(1)
+    if raw == "1er":
+        arrondissement = 1
+    else:
+        arrondissement = int(re.sub(r"\D", "", raw))
+    if 1 <= arrondissement <= 9:
+        return f"6900{arrondissement}"
+    return None
+
+
+def geocode_postcode(street: str, city: str, cache: dict[str, str | None]) -> str | None:
+    query = compact(f"{street}, {city}")
+    if not query:
+        return None
+    if query in cache:
+        return cache[query]
+
+    url = f"{GEOCODER_URL}?q={quote_plus(query)}&limit=1"
+    try:
+        payload = fetch_json(url)
+    except Exception:
+        cache[query] = None
+        return None
+
+    features = payload.get("features") or []
+    if not features:
+        cache[query] = None
+        return None
+
+    properties = features[0].get("properties") or {}
+    geocoded_postcode = properties.get("postcode")
+    geocoded_city = compact(str(properties.get("city") or ""))
+    geocoded_street = compact(str(properties.get("name") or ""))
+
+    if not isinstance(geocoded_postcode, str) or not re.fullmatch(r"69\d{3}", geocoded_postcode):
+        cache[query] = None
+        return None
+    if city and geocoded_city and city.lower() not in geocoded_city.lower():
+        cache[query] = None
+        return None
+    if street and geocoded_street and not any(token.lower() in geocoded_street.lower() for token in street.split()[:2]):
+        cache[query] = None
+        return None
+
+    cache[query] = geocoded_postcode
+    return geocoded_postcode
+
+
+def infer_postcode(title: str, street: str, city: str, description: str, geocode_cache: dict[str, str | None]) -> tuple[str | None, str]:
+    haystack = " ".join([title, street, city, description])
     match = re.search(r"\b(69\d{3})\b", haystack)
-    return match.group(1) if match else None
+    if match:
+        return match.group(1), "explicit_text"
+
+    arrondissement_postcode = arrondissement_to_postcode(haystack)
+    if arrondissement_postcode:
+        return arrondissement_postcode, "lyon_arrondissement"
+
+    geocoded_postcode = geocode_postcode(street, city, geocode_cache)
+    if geocoded_postcode:
+        return geocoded_postcode, "geocoded_street_city"
+
+    return None, "missing"
 
 
 def score_student_friendliness(description: str) -> int:
@@ -222,7 +303,7 @@ def shared_confidence(record: dict[str, Any], description: str) -> str:
     return "Low"
 
 
-def parse_listing_record(record: dict[str, Any], scraped_at: str) -> Listing | None:
+def parse_listing_record(record: dict[str, Any], scraped_at: str, geocode_cache: dict[str, str | None]) -> Listing | None:
     if not looks_shared(record):
         return None
 
@@ -236,6 +317,7 @@ def parse_listing_record(record: dict[str, Any], scraped_at: str) -> Listing | N
     lodging_type = str(record.get("lodging_type") or "")
     source_id = str(record.get("id") or record.get("url_token") or relative_url)
     student_score = score_student_friendliness(description)
+    postcode, postcode_source = infer_postcode(title, street, city, description, geocode_cache)
 
     female_only = any(re.search(pattern, description.lower()) for pattern in FEMALE_ONLY_PATTERNS)
     male_only = any(re.search(pattern, description.lower()) for pattern in MALE_ONLY_PATTERNS)
@@ -258,7 +340,8 @@ def parse_listing_record(record: dict[str, Any], scraped_at: str) -> Listing | N
         published_label=compact(str(record.get("published_at_string") or "")),
         city=city,
         street=street,
-        postcode=infer_postcode(street, city, description),
+        postcode=postcode,
+        postcode_source=postcode_source,
         company_name=compact(str(record.get("company_name") or "")),
         description=description,
         female_only=bool_label(female_only),
@@ -284,8 +367,9 @@ def parse_results_payload(raw_text: str, scraped_at: str) -> tuple[list[Listing]
         results = []
 
     parsed: list[Listing] = []
+    geocode_cache: dict[str, str | None] = {}
     for record in results:
-        listing = parse_listing_record(record, scraped_at)
+        listing = parse_listing_record(record, scraped_at, geocode_cache)
         if listing is not None:
             parsed.append(listing)
 
@@ -466,6 +550,7 @@ def export_excel(path: Path, listings: list[Listing], meta: dict[str, Any]) -> N
         "City",
         "Street",
         "Postcode",
+        "Postcode Source",
         "Company",
         "Description",
         "Thumbnail",
@@ -500,6 +585,7 @@ def export_excel(path: Path, listings: list[Listing], meta: dict[str, Any]) -> N
                 listing.city,
                 listing.street,
                 listing.postcode,
+                listing.postcode_source,
                 listing.company_name,
                 listing.description,
                 listing.raw_thumb_url,
@@ -524,10 +610,11 @@ def export_excel(path: Path, listings: list[Listing], meta: dict[str, Any]) -> N
         "N": 12,
         "O": 28,
         "P": 10,
-        "Q": 18,
-        "R": 80,
-        "S": 36,
-        "T": 28,
+        "Q": 16,
+        "R": 18,
+        "S": 80,
+        "T": 36,
+        "U": 28,
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
