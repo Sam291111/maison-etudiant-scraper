@@ -24,6 +24,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -40,6 +43,25 @@ ACTIVE_CSV_PATH = OUTPUT_DIR / "active_listings.csv"
 NEW_JSON_PATH = OUTPUT_DIR / "new_in_run.json"
 UPDATED_JSON_PATH = OUTPUT_DIR / "updated_in_run.json"
 REMOVED_JSON_PATH = OUTPUT_DIR / "removed_in_run.json"
+
+HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+}
+REMOVAL_CHECK_TIMEOUT_SECONDS = 20
+DEAD_PAGE_PATTERNS = (
+    "404",
+    "page introuvable",
+    "not found",
+    "annonce n'est plus disponible",
+    "annonce n’est plus disponible",
+    "annonce indisponible",
+    "listing no longer available",
+    "offer no longer available",
+)
 
 
 EXPECTED_OUTPUTS = {
@@ -124,6 +146,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             is_active INTEGER NOT NULL DEFAULT 1,
             fingerprint TEXT NOT NULL,
             latest_status TEXT NOT NULL,
+            consecutive_missing_count INTEGER NOT NULL DEFAULT 0,
+            pending_removal_since TEXT,
+            removal_check_status TEXT NOT NULL DEFAULT 'not_checked',
             latest_raw_json TEXT NOT NULL,
             latest_normalized_json TEXT NOT NULL
         );
@@ -144,6 +169,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(listings)").fetchall()}
+    if "consecutive_missing_count" not in existing_columns:
+        conn.execute("ALTER TABLE listings ADD COLUMN consecutive_missing_count INTEGER NOT NULL DEFAULT 0")
+    if "pending_removal_since" not in existing_columns:
+        conn.execute("ALTER TABLE listings ADD COLUMN pending_removal_since TEXT")
+    if "removal_check_status" not in existing_columns:
+        conn.execute("ALTER TABLE listings ADD COLUMN removal_check_status TEXT NOT NULL DEFAULT 'not_checked'")
     conn.commit()
 
 
@@ -195,6 +227,40 @@ def pair_records(payload: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str
         norm = normalized[index] if index < len(normalized) and isinstance(normalized[index], dict) else {}
         pairs.append((listing, norm))
     return pairs
+
+
+def page_content_looks_dead(final_url: str, body: str) -> bool:
+    haystack = f"{final_url}\n{body}".lower()
+    return any(pattern in haystack for pattern in DEAD_PAGE_PATTERNS)
+
+
+def verify_listing_unavailable(url: str) -> tuple[bool, str]:
+    request = Request(url, headers=HTTP_HEADERS)
+    try:
+        with urlopen(request, timeout=REMOVAL_CHECK_TIMEOUT_SECONDS) as response:
+            final_url = response.geturl()
+            status_code = getattr(response, "status", None) or response.getcode()
+            body = response.read(200_000).decode("utf-8", errors="replace")
+    except HTTPError as exc:
+        if exc.code in {404, 410}:
+            return True, f"http_{exc.code}"
+        return False, f"http_{exc.code}"
+    except URLError:
+        return False, "network_error"
+    except Exception:
+        return False, "check_failed"
+
+    if status_code in {404, 410}:
+        return True, f"http_{status_code}"
+    if page_content_looks_dead(final_url, body):
+        return True, "dead_page_text"
+
+    original_path = urlparse(url).path
+    final_path = urlparse(final_url).path
+    if final_path != original_path and page_content_looks_dead(final_url, body):
+        return True, "redirected_dead_page"
+
+    return False, "live_or_unknown"
 
 
 def ingest_source_run(
@@ -261,6 +327,9 @@ def ingest_source_run(
                 is_active = 1,
                 fingerprint = excluded.fingerprint,
                 latest_status = excluded.latest_status,
+                consecutive_missing_count = 0,
+                pending_removal_since = NULL,
+                removal_check_status = 'not_checked',
                 latest_raw_json = excluded.latest_raw_json,
                 latest_normalized_json = excluded.latest_normalized_json
             """,
@@ -305,21 +374,62 @@ def ingest_source_run(
         status_counts[status] += 1
 
     previously_active = conn.execute(
-        "SELECT listing_uid, fingerprint, latest_raw_json, latest_normalized_json FROM listings WHERE source = ? AND is_active = 1",
+        """
+        SELECT
+            listing_uid,
+            fingerprint,
+            latest_raw_json,
+            latest_normalized_json,
+            url,
+            consecutive_missing_count,
+            pending_removal_since
+        FROM listings
+        WHERE source = ? AND is_active = 1
+        """,
         (bundle.source,),
     ).fetchall()
     for row in previously_active:
         uid = str(row[0])
         if uid in current_uids:
             continue
-        conn.execute(
-            """
-            UPDATE listings
-            SET is_active = 0, removed_at = ?, latest_status = ?
-            WHERE listing_uid = ?
-            """,
-            (seen_at, "removed", uid),
-        )
+        url = json.loads(str(row[2])).get("url") or ""
+        unavailable, check_status = verify_listing_unavailable(url) if url else (False, "missing_url")
+        missing_count = int(row[5] or 0) + 1
+        pending_since = str(row[6]) if row[6] else seen_at
+
+        if unavailable:
+            conn.execute(
+                """
+                UPDATE listings
+                SET
+                    is_active = 0,
+                    removed_at = ?,
+                    latest_status = ?,
+                    consecutive_missing_count = ?,
+                    pending_removal_since = ?,
+                    removal_check_status = ?
+                WHERE listing_uid = ?
+                """,
+                (seen_at, "removed", missing_count, pending_since, check_status, uid),
+            )
+            history_status = "removed"
+            status_counts["removed"] += 1
+        else:
+            latest_status = "missing_but_live" if check_status == "live_or_unknown" else "pending_removal"
+            conn.execute(
+                """
+                UPDATE listings
+                SET
+                    latest_status = ?,
+                    consecutive_missing_count = ?,
+                    pending_removal_since = ?,
+                    removal_check_status = ?
+                WHERE listing_uid = ?
+                """,
+                (latest_status, missing_count, pending_since, check_status, uid),
+            )
+            history_status = latest_status
+            status_counts[history_status] += 1
         conn.execute(
             """
             INSERT INTO listing_history (
@@ -333,14 +443,13 @@ def ingest_source_run(
                 source_run_id,
                 uid,
                 bundle.source,
-                "removed",
+                history_status,
                 seen_at,
                 str(row[1]),
                 str(row[2]),
                 str(row[3]),
             ),
         )
-        status_counts["removed"] += 1
 
     conn.commit()
     return dict(status_counts)
