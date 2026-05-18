@@ -103,8 +103,10 @@ function bootChangeViews() {
   const cards = Array.from(document.querySelectorAll(".stat-card[data-view-target]"));
   const panels = Array.from(document.querySelectorAll(".change-panel[data-view-panel]"));
   const views = document.getElementById("changeViews");
+  let currentView = "active";
 
   function activate(viewName) {
+    currentView = viewName;
     for (const card of cards) {
       card.classList.toggle("is-active", card.dataset.viewTarget === viewName);
     }
@@ -121,7 +123,8 @@ function bootChangeViews() {
 
   for (const card of cards) {
     card.addEventListener("click", () => {
-      activate(card.dataset.viewTarget || "active");
+      const targetView = card.dataset.viewTarget || "active";
+      activate(currentView === targetView ? "active" : targetView);
     });
   }
 
