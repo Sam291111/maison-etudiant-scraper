@@ -102,6 +102,7 @@ function renderChanges(newRows, removedRows) {
 function bootChangeViews() {
   const cards = Array.from(document.querySelectorAll(".stat-card[data-view-target]"));
   const panels = Array.from(document.querySelectorAll(".change-panel[data-view-panel]"));
+  const views = document.getElementById("changeViews");
 
   function activate(viewName) {
     for (const card of cards) {
@@ -110,8 +111,10 @@ function bootChangeViews() {
     for (const panel of panels) {
       panel.classList.toggle("is-active", panel.dataset.viewPanel === viewName);
     }
-    const views = document.getElementById("changeViews");
     if (views) {
+      views.classList.toggle("is-visible", viewName !== "active");
+    }
+    if (views && viewName !== "active") {
       views.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
@@ -121,6 +124,8 @@ function bootChangeViews() {
       activate(card.dataset.viewTarget || "active");
     });
   }
+
+  activate("active");
 }
 
 function createMap(sourceColors) {

@@ -266,7 +266,12 @@ select,
 }
 
 .change-views {
+  display: none;
   margin-bottom: 14px;
+}
+
+.change-views.is-visible {
+  display: block;
 }
 
 .change-panel {
