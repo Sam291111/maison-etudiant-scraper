@@ -15,83 +15,91 @@
 <body>
   <div class="wrap">
     <section class="hero">
+      <div class="hero-top">
+        <div>
       <p class="eyebrow">Maison Etudiant</p>
-      <h1>Lyon Shared Accommodation Dashboard</h1>
-      <p class="lead">Daily combined listings from ImmoJeune, La Carte des Colocs, Location Étudiant, and Studapart.</p>
+          <h1 data-i18n="heroTitle">Lyon Shared Accommodation Dashboard</h1>
+          <p class="lead" data-i18n="heroLead">Daily combined listings from ImmoJeune, La Carte des Colocs, Location Étudiant, and Studapart.</p>
+        </div>
+        <div class="language-switcher" aria-label="Language switcher">
+          <button id="langEn" class="lang-button is-active" type="button">EN</button>
+          <button id="langFr" class="lang-button" type="button">FR</button>
+        </div>
+      </div>
     </section>
 
     <section class="stats" id="stats">
       <article class="card stat-card is-active" data-view-target="active">
-        <p class="label">Active Listings</p>
+        <p class="label" data-i18n="activeListings">Active Listings</p>
         <p class="value" id="activeCount">-</p>
       </article>
       <article class="card">
-        <p class="label">Sources</p>
+        <p class="label" data-i18n="sources">Sources</p>
         <p class="value" id="sourceCount">-</p>
       </article>
       <article class="card stat-card" data-view-target="new">
-        <p class="label">New In Latest Run</p>
+        <p class="label" data-i18n="newInLatestRun">New In Latest Run</p>
         <p class="value" id="newCount">-</p>
       </article>
       <article class="card">
-        <p class="label">Updated In Latest Run</p>
+        <p class="label" data-i18n="updatedInLatestRun">Updated In Latest Run</p>
         <p class="value" id="updatedCount">-</p>
       </article>
       <article class="card stat-card" data-view-target="removed">
-        <p class="label">Removed In Latest Run</p>
+        <p class="label" data-i18n="removedInLatestRun">Removed In Latest Run</p>
         <p class="value" id="removedCount">-</p>
       </article>
       <article class="card">
-        <p class="label">Last Refresh</p>
+        <p class="label" data-i18n="lastRefresh">Last Refresh</p>
         <p class="value small" id="lastRefresh">-</p>
       </article>
     </section>
 
     <section class="toolbar">
-      <input id="searchInput" type="search" placeholder="Search by title, address, postcode, city">
+      <input id="searchInput" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search by title, address, postcode, city">
       <select id="sourceFilter">
-        <option value="">All sources</option>
+        <option value="" data-i18n="allSources">All sources</option>
       </select>
       <select id="statusFilter">
-        <option value="">Any status</option>
+        <option value="" data-i18n="anyStatus">Any status</option>
       </select>
       <div class="actions">
-        <a class="button" href="./downloads/lyon_master_listings.xlsx">Download XLSX</a>
-        <a class="button secondary" href="./downloads/active_listings.csv">Download CSV</a>
+        <a id="downloadXlsxButton" class="button" href="./downloads/lyon_master_listings.xlsx" data-i18n="downloadXlsx">Download XLSX</a>
+        <a id="downloadCsvButton" class="button secondary" href="./downloads/active_listings.csv" data-i18n="downloadCsv">Download CSV</a>
         <a class="button secondary" href="./data/active_listings.json">JSON</a>
       </div>
     </section>
 
     <section class="card filter-panel">
       <div class="section-head">
-        <h2>Dashboard Filters</h2>
+        <h2 data-i18n="dashboardFilters">Dashboard Filters</h2>
         <p id="visibleCount" class="section-meta">Loading listings…</p>
       </div>
       <div class="filter-grid">
         <label class="filter-field">
-          <span>Minimum Price (EUR)</span>
-          <input id="minPriceFilter" type="number" inputmode="numeric" min="0" placeholder="No minimum">
+          <span data-i18n="minimumPrice">Minimum Price (EUR)</span>
+          <input id="minPriceFilter" type="number" inputmode="numeric" min="0" data-i18n-placeholder="noMinimum" placeholder="No minimum">
         </label>
         <label class="filter-field">
-          <span>Maximum Price (EUR)</span>
-          <input id="maxPriceFilter" type="number" inputmode="numeric" min="0" placeholder="No maximum">
+          <span data-i18n="maximumPrice">Maximum Price (EUR)</span>
+          <input id="maxPriceFilter" type="number" inputmode="numeric" min="0" data-i18n-placeholder="noMaximum" placeholder="No maximum">
         </label>
         <label class="filter-field checkbox-field">
           <input id="mappedOnlyFilter" type="checkbox">
-          <span>Only show listings with map coordinates</span>
+          <span data-i18n="mappedOnly">Only show listings with map coordinates</span>
         </label>
         <div class="filter-actions-row">
-          <button id="resetFilters" class="button secondary" type="button">Reset filters</button>
+          <button id="resetFilters" class="button secondary" type="button" data-i18n="resetFilters">Reset filters</button>
         </div>
         <div class="postcode-panel">
           <div class="postcode-head">
             <div>
-              <p class="postcode-label">Postcode Filter</p>
+              <p class="postcode-label" data-i18n="postcodeFilter">Postcode Filter</p>
               <p id="postcodeMeta" class="section-meta">Loading postcode options…</p>
             </div>
             <div class="postcode-actions">
-              <button id="postcodeSelectAll" class="chip-action" type="button">Select all</button>
-              <button id="postcodeClearAll" class="chip-action" type="button">Clear all</button>
+              <button id="postcodeSelectAll" class="chip-action" type="button" data-i18n="selectAll">Select all</button>
+              <button id="postcodeClearAll" class="chip-action" type="button" data-i18n="clearAll">Clear all</button>
             </div>
           </div>
           <div id="postcodeFilter" class="chip-grid"></div>
@@ -104,14 +112,14 @@
     <section id="changeViews" class="change-views">
       <article class="card change-panel" data-view-panel="new">
         <div class="section-head">
-          <h2>New In Latest Run</h2>
+          <h2 data-i18n="newInLatestRun">New In Latest Run</h2>
           <p id="newMeta" class="section-meta"></p>
         </div>
         <div id="newList" class="change-list empty-state">Loading new listings…</div>
       </article>
       <article class="card change-panel" data-view-panel="removed">
         <div class="section-head">
-          <h2>Removed In Latest Run</h2>
+          <h2 data-i18n="removedInLatestRun">Removed In Latest Run</h2>
           <p id="removedMeta" class="section-meta"></p>
         </div>
         <div id="removedList" class="change-list empty-state">Loading removed listings…</div>
@@ -120,7 +128,7 @@
 
     <section class="map-card card">
       <div class="section-head">
-        <h2>Map View</h2>
+        <h2 data-i18n="mapView">Map View</h2>
         <p id="mapMeta" class="section-meta">Loading mapped listings…</p>
       </div>
       <div id="map"></div>
@@ -130,17 +138,17 @@
       <table id="listingTable">
         <thead>
           <tr>
-            <th data-key="source">Source</th>
-            <th data-key="title">Title</th>
-            <th data-key="price_eur">Price EUR</th>
-            <th data-key="postcode">Postcode</th>
-            <th data-key="city">City</th>
-            <th data-key="address">Address</th>
-            <th data-key="availability">Availability</th>
-            <th data-key="extra_summary">Summary</th>
-            <th data-key="first_seen_at">First Seen</th>
-            <th data-key="last_seen_at">Last Seen</th>
-            <th data-key="url">Link</th>
+            <th data-key="source" data-i18n="source">Source</th>
+            <th data-key="title" data-i18n="title">Title</th>
+            <th data-key="price_eur" data-i18n="priceEur">Price EUR</th>
+            <th data-key="postcode" data-i18n="postcode">Postcode</th>
+            <th data-key="city" data-i18n="city">City</th>
+            <th data-key="address" data-i18n="address">Address</th>
+            <th data-key="availability" data-i18n="availability">Availability</th>
+            <th data-key="extra_summary" data-i18n="summary">Summary</th>
+            <th data-key="first_seen_at" data-i18n="firstSeen">First Seen</th>
+            <th data-key="last_seen_at" data-i18n="lastSeen">Last Seen</th>
+            <th data-key="url" data-i18n="link">Link</th>
           </tr>
         </thead>
         <tbody></tbody>

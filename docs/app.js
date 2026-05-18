@@ -1,9 +1,161 @@
-async function fetchJson(path) {
-  const response = await fetch(path, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.status}`);
-  }
-  return response.json();
+const LANGUAGE_KEY = "maison_etudiant_language";
+
+const translations = {
+  en: {
+    pageTitle: "Lyon Shared Accommodation",
+    heroTitle: "Lyon Shared Accommodation Dashboard",
+    heroLead: "Daily combined listings from ImmoJeune, La Carte des Colocs, Location Étudiant, and Studapart.",
+    activeListings: "Active Listings",
+    sources: "Sources",
+    newInLatestRun: "New In Latest Run",
+    updatedInLatestRun: "Updated In Latest Run",
+    removedInLatestRun: "Removed In Latest Run",
+    lastRefresh: "Last Refresh",
+    searchPlaceholder: "Search by title, address, postcode, city",
+    allSources: "All sources",
+    anyStatus: "Any status",
+    downloadXlsx: "Download XLSX",
+    downloadCsv: "Download CSV",
+    dashboardFilters: "Dashboard Filters",
+    minimumPrice: "Minimum Price (EUR)",
+    maximumPrice: "Maximum Price (EUR)",
+    noMinimum: "No minimum",
+    noMaximum: "No maximum",
+    mappedOnly: "Only show listings with map coordinates",
+    resetFilters: "Reset filters",
+    postcodeFilter: "Postcode Filter",
+    selectAll: "Select all",
+    clearAll: "Clear all",
+    mapView: "Map View",
+    source: "Source",
+    title: "Title",
+    priceEur: "Price EUR",
+    postcode: "Postcode",
+    city: "City",
+    address: "Address",
+    availability: "Availability",
+    summary: "Summary",
+    firstSeen: "First Seen",
+    lastSeen: "Last Seen",
+    link: "Link",
+    open: "Open",
+    jsonError: "Could not load listing data yet.",
+    mapUnavailable: "Map unavailable.",
+    currentSourceMix: "Current source mix",
+    noNewListings: "No new listings in the latest run.",
+    noRemovedListings: "No removed listings in the latest run.",
+    loadingVisible: "Loading listings…",
+    loadingPostcodes: "Loading postcode options…",
+    loadingMapped: "Loading mapped listings…",
+    loadingNew: "Loading new listings…",
+    loadingRemoved: "Loading removed listings…",
+    listingSingular: "listing",
+    listingPlural: "listings",
+    visibleSuffix: "visible",
+    mappedInCurrentView: "in the current filtered view",
+    sourceCountLabel: "source",
+    sourceCountPlural: "sources",
+    statusNew: "new",
+    statusUpdated: "updated",
+    statusUnchanged: "unchanged",
+    statusMissingButLive: "missing but live",
+    statusPendingRemoval: "pending removal",
+    priceUnknown: "Price unknown",
+    unknownPostcode: "Unknown postcode",
+    allPostcodesSelected: "All {count} postcode groups selected",
+    somePostcodesSelected: "{selected} of {count} postcode groups selected",
+  },
+  fr: {
+    pageTitle: "Logements partagés à Lyon",
+    heroTitle: "Tableau de Bord des Logements Partagés à Lyon",
+    heroLead: "Annonces combinées chaque jour depuis ImmoJeune, La Carte des Colocs, Location Étudiant et Studapart.",
+    activeListings: "Annonces actives",
+    sources: "Sources",
+    newInLatestRun: "Nouvelles lors du dernier passage",
+    updatedInLatestRun: "Mises à jour lors du dernier passage",
+    removedInLatestRun: "Retirées lors du dernier passage",
+    lastRefresh: "Dernière mise à jour",
+    searchPlaceholder: "Rechercher par titre, adresse, code postal, ville",
+    allSources: "Toutes les sources",
+    anyStatus: "Tous les statuts",
+    downloadXlsx: "Télécharger XLSX",
+    downloadCsv: "Télécharger CSV",
+    dashboardFilters: "Filtres du tableau de bord",
+    minimumPrice: "Prix minimum (EUR)",
+    maximumPrice: "Prix maximum (EUR)",
+    noMinimum: "Pas de minimum",
+    noMaximum: "Pas de maximum",
+    mappedOnly: "Afficher uniquement les annonces avec coordonnées sur la carte",
+    resetFilters: "Réinitialiser les filtres",
+    postcodeFilter: "Filtre par code postal",
+    selectAll: "Tout sélectionner",
+    clearAll: "Tout effacer",
+    mapView: "Vue carte",
+    source: "Source",
+    title: "Titre",
+    priceEur: "Prix EUR",
+    postcode: "Code postal",
+    city: "Ville",
+    address: "Adresse",
+    availability: "Disponibilité",
+    summary: "Résumé",
+    firstSeen: "Première détection",
+    lastSeen: "Dernière détection",
+    link: "Lien",
+    open: "Ouvrir",
+    jsonError: "Impossible de charger les données pour le moment.",
+    mapUnavailable: "Carte indisponible.",
+    currentSourceMix: "Répartition actuelle des sources",
+    noNewListings: "Aucune nouvelle annonce lors du dernier passage.",
+    noRemovedListings: "Aucune annonce retirée lors du dernier passage.",
+    loadingVisible: "Chargement des annonces…",
+    loadingPostcodes: "Chargement des codes postaux…",
+    loadingMapped: "Chargement des annonces cartographiées…",
+    loadingNew: "Chargement des nouvelles annonces…",
+    loadingRemoved: "Chargement des annonces retirées…",
+    listingSingular: "annonce",
+    listingPlural: "annonces",
+    visibleSuffix: "visibles",
+    mappedInCurrentView: "dans la vue filtrée actuelle",
+    sourceCountLabel: "source",
+    sourceCountPlural: "sources",
+    statusNew: "nouvelle",
+    statusUpdated: "mise à jour",
+    statusUnchanged: "inchangée",
+    statusMissingButLive: "manquante mais en ligne",
+    statusPendingRemoval: "retrait en attente",
+    priceUnknown: "Prix inconnu",
+    unknownPostcode: "Code postal inconnu",
+    allPostcodesSelected: "Les {count} groupes de codes postaux sont sélectionnés",
+    somePostcodesSelected: "{selected} groupes sur {count} sont sélectionnés",
+  },
+};
+
+let currentLanguage = localStorage.getItem(LANGUAGE_KEY) || "en";
+let renderUI = null;
+
+function t(key, params = {}) {
+  const dict = translations[currentLanguage] || translations.en;
+  const template = dict[key] ?? translations.en[key] ?? key;
+  return template.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? ""));
+}
+
+function statusLabel(status) {
+  const key = `status${status.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("")}`;
+  return t(key);
+}
+
+function pluralListing(count) {
+  return `${count} ${count === 1 ? t("listingSingular") : t("listingPlural")}`;
+}
+
+function fetchJson(path) {
+  return fetch(path, { cache: "no-store" }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Failed to load ${path}: ${response.status}`);
+    }
+    return response.json();
+  });
 }
 
 function safe(value) {
@@ -25,12 +177,29 @@ function formatTimestamp(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return safe(value);
-  return date.toLocaleString();
+  return date.toLocaleString(currentLanguage === "fr" ? "fr-FR" : undefined);
 }
 
 function priceLabel(value) {
-  if (value === null || value === undefined || value === "") return "Price unknown";
+  if (value === null || value === undefined || value === "") return t("priceUnknown");
   return `${value} EUR`;
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = currentLanguage;
+  document.title = t("pageTitle");
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
+  const enButton = document.getElementById("langEn");
+  const frButton = document.getElementById("langFr");
+  if (enButton && frButton) {
+    enButton.classList.toggle("is-active", currentLanguage === "en");
+    frButton.classList.toggle("is-active", currentLanguage === "fr");
+  }
 }
 
 function shortListHtml(rows, emptyLabel) {
@@ -55,6 +224,8 @@ function shortListHtml(rows, emptyLabel) {
 
 function populateSourceFilter(listings) {
   const select = document.getElementById("sourceFilter");
+  const currentValue = select.value;
+  select.innerHTML = `<option value="">${t("allSources")}</option>`;
   const sources = [...new Set(listings.map((row) => row.source).filter(Boolean))].sort();
   for (const source of sources) {
     const option = document.createElement("option");
@@ -62,16 +233,24 @@ function populateSourceFilter(listings) {
     option.textContent = source;
     select.appendChild(option);
   }
+  if ([...select.options].some((option) => option.value === currentValue)) {
+    select.value = currentValue;
+  }
 }
 
 function populateStatusFilter(listings) {
   const select = document.getElementById("statusFilter");
+  const currentValue = select.value;
+  select.innerHTML = `<option value="">${t("anyStatus")}</option>`;
   const statuses = [...new Set(listings.map((row) => safe(row.latest_status).toLowerCase()).filter(Boolean))].sort();
   for (const status of statuses) {
     const option = document.createElement("option");
     option.value = status;
-    option.textContent = status;
+    option.textContent = statusLabel(status);
     select.appendChild(option);
+  }
+  if ([...select.options].some((option) => option.value === currentValue)) {
+    select.value = currentValue;
   }
 }
 
@@ -89,14 +268,14 @@ function setSummary(metadata) {
   const parts = Object.entries(sourceCounts)
     .sort((left, right) => left[0].localeCompare(right[0]))
     .map(([source, count]) => `${source}: ${count}`);
-  document.getElementById("sourceBreakdown").textContent = parts.length ? `Current source mix: ${parts.join(" | ")}` : "";
+  document.getElementById("sourceBreakdown").textContent = parts.length ? `${t("currentSourceMix")}: ${parts.join(" | ")}` : "";
 }
 
 function renderChanges(newRows, removedRows) {
-  document.getElementById("newList").innerHTML = shortListHtml(newRows, "No new listings in the latest run.");
-  document.getElementById("removedList").innerHTML = shortListHtml(removedRows, "No removed listings in the latest run.");
-  document.getElementById("newMeta").textContent = `${newRows.length} listing${newRows.length === 1 ? "" : "s"}`;
-  document.getElementById("removedMeta").textContent = `${removedRows.length} listing${removedRows.length === 1 ? "" : "s"}`;
+  document.getElementById("newList").innerHTML = shortListHtml(newRows, t("noNewListings"));
+  document.getElementById("removedList").innerHTML = shortListHtml(removedRows, t("noRemovedListings"));
+  document.getElementById("newMeta").textContent = pluralListing(newRows.length);
+  document.getElementById("removedMeta").textContent = pluralListing(removedRows.length);
 }
 
 function bootChangeViews() {
@@ -156,13 +335,14 @@ function createMap(sourceColors) {
           ${safe(row.source)}<br>
           ${priceLabel(row.price_eur)}<br>
           ${safe(row.address)}<br>
-          <a href="${safe(row.url)}" target="_blank" rel="noreferrer">Open listing</a>
+          <a href="${safe(row.url)}" target="_blank" rel="noreferrer">${t("open")}</a>
         `,
       );
       layerGroup.addLayer(marker);
     }
 
-    document.getElementById("mapMeta").textContent = `${withCoords.length} mapped listing${withCoords.length === 1 ? "" : "s"} in the current filtered view`;
+    document.getElementById("mapMeta").textContent =
+      `${pluralListing(withCoords.length)} ${t("mappedInCurrentView")}`;
 
     if (withCoords.length) {
       const bounds = L.latLngBounds(withCoords.map((row) => [row.latitude, row.longitude]));
@@ -173,7 +353,7 @@ function createMap(sourceColors) {
   return { update };
 }
 
-function bootTable(listings) {
+function bootTable(listings, newRows, removedRows, metadata) {
   const tbody = document.querySelector("#listingTable tbody");
   const searchInput = document.getElementById("searchInput");
   const sourceFilter = document.getElementById("sourceFilter");
@@ -205,7 +385,6 @@ function bootTable(listings) {
     .sort((left, right) => compareValues(left[0], right[0]))
     .map(([value, count]) => ({
       value,
-      label: value === "__unknown__" ? "Unknown postcode" : value,
       count,
     }));
 
@@ -217,27 +396,23 @@ function bootTable(listings) {
     return safe(row.postcode).trim() || "__unknown__";
   }
 
-  function activePostcodeFilterCount() {
-    return postcodeOptions.length - selectedPostcodes.size;
-  }
-
   function renderPostcodeFilter() {
     postcodeFilter.innerHTML = postcodeOptions
       .map((option) => {
         const checked = selectedPostcodes.has(option.value) ? "checked" : "";
+        const label = option.value === "__unknown__" ? t("unknownPostcode") : option.value;
         return `
           <label class="chip-option ${checked ? "active" : ""}">
             <input type="checkbox" value="${option.value}" ${checked}>
-            <span>${safe(option.label)} <strong>${option.count}</strong></span>
+            <span>${safe(label)} <strong>${option.count}</strong></span>
           </label>
         `;
       })
       .join("");
 
-    const hiddenCount = activePostcodeFilterCount();
-    postcodeMeta.textContent = hiddenCount
-      ? `${selectedPostcodes.size} of ${postcodeOptions.length} postcode groups selected`
-      : `All ${postcodeOptions.length} postcode groups selected`;
+    postcodeMeta.textContent = selectedPostcodes.size === postcodeOptions.length
+      ? t("allPostcodesSelected", { count: postcodeOptions.length })
+      : t("somePostcodesSelected", { selected: selectedPostcodes.size, count: postcodeOptions.length });
 
     postcodeFilter.querySelectorAll("input[type='checkbox']").forEach((input) => {
       input.addEventListener("change", (event) => {
@@ -282,10 +457,7 @@ function bootTable(listings) {
         row.address,
         row.availability,
         row.extra_summary,
-      ]
-        .map(safe)
-        .join(" ")
-        .toLowerCase();
+      ].map(safe).join(" ").toLowerCase();
       return haystack.includes(query);
     });
   }
@@ -296,27 +468,23 @@ function bootTable(listings) {
       return sortDirection === "asc" ? result : -result;
     });
 
-    tbody.innerHTML = rows
-      .map(
-        (row) => `
-        <tr>
-          <td>${safe(row.source)}</td>
-          <td>${safe(row.title)}</td>
-          <td>${safe(row.price_eur)}</td>
-          <td>${safe(row.postcode)}</td>
-          <td>${safe(row.city)}</td>
-          <td>${safe(row.address)}</td>
-          <td>${safe(row.availability)}</td>
-          <td>${safe(row.extra_summary)}</td>
-          <td>${formatTimestamp(row.first_seen_at)}</td>
-          <td>${formatTimestamp(row.last_seen_at)}</td>
-          <td><a href="${safe(row.url)}" target="_blank" rel="noreferrer">Open</a></td>
-        </tr>
-      `,
-      )
-      .join("");
+    tbody.innerHTML = rows.map((row) => `
+      <tr>
+        <td>${safe(row.source)}</td>
+        <td>${safe(row.title)}</td>
+        <td>${safe(row.price_eur)}</td>
+        <td>${safe(row.postcode)}</td>
+        <td>${safe(row.city)}</td>
+        <td>${safe(row.address)}</td>
+        <td>${safe(row.availability)}</td>
+        <td>${safe(row.extra_summary)}</td>
+        <td>${formatTimestamp(row.first_seen_at)}</td>
+        <td>${formatTimestamp(row.last_seen_at)}</td>
+        <td><a href="${safe(row.url)}" target="_blank" rel="noreferrer">${t("open")}</a></td>
+      </tr>
+    `).join("");
 
-    visibleCount.textContent = `${rows.length} listing${rows.length === 1 ? "" : "s"} visible`;
+    visibleCount.textContent = `${pluralListing(rows.length)} ${t("visibleSuffix")}`;
     mapView.update(rows);
   }
 
@@ -364,11 +532,39 @@ function bootTable(listings) {
   maxPriceFilter.addEventListener("input", render);
   mappedOnlyFilter.addEventListener("change", render);
 
-  renderPostcodeFilter();
-  render();
+  renderUI = () => {
+    applyStaticTranslations();
+    populateSourceFilter(listings);
+    populateStatusFilter(listings);
+    setSummary(metadata);
+    renderChanges(newRows, removedRows);
+    renderPostcodeFilter();
+    render();
+  };
+
+  renderUI();
+}
+
+function bootLanguageSwitcher() {
+  const enButton = document.getElementById("langEn");
+  const frButton = document.getElementById("langFr");
+
+  function switchLanguage(nextLanguage) {
+    currentLanguage = nextLanguage;
+    localStorage.setItem(LANGUAGE_KEY, currentLanguage);
+    applyStaticTranslations();
+    if (typeof renderUI === "function") {
+      renderUI();
+    }
+  }
+
+  enButton.addEventListener("click", () => switchLanguage("en"));
+  frButton.addEventListener("click", () => switchLanguage("fr"));
+  applyStaticTranslations();
 }
 
 async function main() {
+  bootLanguageSwitcher();
   try {
     const [listings, metadata, newRows, removedRows] = await Promise.all([
       fetchJson("./data/active_listings.json"),
@@ -376,17 +572,13 @@ async function main() {
       fetchJson("./data/new_in_run.json"),
       fetchJson("./data/removed_in_run.json"),
     ]);
-    populateSourceFilter(listings);
-    populateStatusFilter(listings);
-    setSummary(metadata);
-    renderChanges(newRows, removedRows);
     bootChangeViews();
-    bootTable(listings);
+    bootTable(listings, newRows, removedRows, metadata);
   } catch (error) {
-    document.querySelector(".table-shell").innerHTML = `<p class="source-note">Could not load listing data yet. ${safe(error.message)}</p>`;
+    document.querySelector(".table-shell").innerHTML = `<p class="source-note">${t("jsonError")} ${safe(error.message)}</p>`;
     const mapEl = document.getElementById("map");
     if (mapEl) {
-      mapEl.outerHTML = `<p class="source-note">Map unavailable. ${safe(error.message)}</p>`;
+      mapEl.outerHTML = `<p class="source-note">${t("mapUnavailable")} ${safe(error.message)}</p>`;
     }
   }
 }
