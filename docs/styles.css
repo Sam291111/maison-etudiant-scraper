@@ -75,6 +75,21 @@ h1 {
   padding: 16px;
 }
 
+.stat-card {
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(28, 35, 41, 0.08);
+}
+
+.stat-card.is-active {
+  border-color: rgba(13, 107, 102, 0.35);
+  box-shadow: 0 14px 28px rgba(13, 107, 102, 0.12);
+}
+
 .label {
   margin: 0 0 8px;
   color: var(--muted);
@@ -250,11 +265,16 @@ select,
   margin: 12px 0 14px;
 }
 
-.highlights {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.change-views {
   margin-bottom: 14px;
+}
+
+.change-panel {
+  display: none;
+}
+
+.change-panel.is-active {
+  display: block;
 }
 
 .section-head {
@@ -357,10 +377,6 @@ td a {
 
   .postcode-head {
     flex-direction: column;
-  }
-
-  .highlights {
-    grid-template-columns: 1fr;
   }
 
   .actions {

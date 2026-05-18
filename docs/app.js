@@ -99,6 +99,30 @@ function renderChanges(newRows, removedRows) {
   document.getElementById("removedMeta").textContent = `${removedRows.length} listing${removedRows.length === 1 ? "" : "s"}`;
 }
 
+function bootChangeViews() {
+  const cards = Array.from(document.querySelectorAll(".stat-card[data-view-target]"));
+  const panels = Array.from(document.querySelectorAll(".change-panel[data-view-panel]"));
+
+  function activate(viewName) {
+    for (const card of cards) {
+      card.classList.toggle("is-active", card.dataset.viewTarget === viewName);
+    }
+    for (const panel of panels) {
+      panel.classList.toggle("is-active", panel.dataset.viewPanel === viewName);
+    }
+    const views = document.getElementById("changeViews");
+    if (views) {
+      views.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  for (const card of cards) {
+    card.addEventListener("click", () => {
+      activate(card.dataset.viewTarget || "active");
+    });
+  }
+}
+
 function createMap(sourceColors) {
   const map = L.map("map", { scrollWheelZoom: true }).setView([45.75, 4.85], 11.8);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -348,6 +372,7 @@ async function main() {
     populateStatusFilter(listings);
     setSummary(metadata);
     renderChanges(newRows, removedRows);
+    bootChangeViews();
     bootTable(listings);
   } catch (error) {
     document.querySelector(".table-shell").innerHTML = `<p class="source-note">Could not load listing data yet. ${safe(error.message)}</p>`;

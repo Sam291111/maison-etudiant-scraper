@@ -21,7 +21,7 @@
     </section>
 
     <section class="stats" id="stats">
-      <article class="card">
+      <article class="card stat-card is-active" data-view-target="active">
         <p class="label">Active Listings</p>
         <p class="value" id="activeCount">-</p>
       </article>
@@ -29,7 +29,7 @@
         <p class="label">Sources</p>
         <p class="value" id="sourceCount">-</p>
       </article>
-      <article class="card">
+      <article class="card stat-card" data-view-target="new">
         <p class="label">New In Latest Run</p>
         <p class="value" id="newCount">-</p>
       </article>
@@ -37,7 +37,7 @@
         <p class="label">Updated In Latest Run</p>
         <p class="value" id="updatedCount">-</p>
       </article>
-      <article class="card">
+      <article class="card stat-card" data-view-target="removed">
         <p class="label">Removed In Latest Run</p>
         <p class="value" id="removedCount">-</p>
       </article>
@@ -101,15 +101,21 @@
 
     <p class="source-note" id="sourceBreakdown"></p>
 
-    <section class="highlights">
-      <article class="card">
+    <section id="changeViews" class="change-views">
+      <article class="card change-panel is-active" data-view-panel="active">
+        <div class="section-head">
+          <h2>Main Listings View</h2>
+          <p class="section-meta">Use the filters below to narrow the full combined listing set.</p>
+        </div>
+      </article>
+      <article class="card change-panel" data-view-panel="new">
         <div class="section-head">
           <h2>New In Latest Run</h2>
           <p id="newMeta" class="section-meta"></p>
         </div>
         <div id="newList" class="change-list empty-state">Loading new listings…</div>
       </article>
-      <article class="card">
+      <article class="card change-panel" data-view-panel="removed">
         <div class="section-head">
           <h2>Removed In Latest Run</h2>
           <p id="removedMeta" class="section-meta"></p>
