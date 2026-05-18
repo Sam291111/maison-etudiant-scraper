@@ -55,11 +55,22 @@ function shortListHtml(rows, emptyLabel) {
 
 function populateSourceFilter(listings) {
   const select = document.getElementById("sourceFilter");
-  const sources = [...new Set(listings.map((row) => row.source))].sort();
+  const sources = [...new Set(listings.map((row) => row.source).filter(Boolean))].sort();
   for (const source of sources) {
     const option = document.createElement("option");
     option.value = source;
     option.textContent = source;
+    select.appendChild(option);
+  }
+}
+
+function populateStatusFilter(listings) {
+  const select = document.getElementById("statusFilter");
+  const statuses = [...new Set(listings.map((row) => safe(row.latest_status).toLowerCase()).filter(Boolean))].sort();
+  for (const status of statuses) {
+    const option = document.createElement("option");
+    option.value = status;
+    option.textContent = status;
     select.appendChild(option);
   }
 }
@@ -135,6 +146,15 @@ function bootTable(listings) {
   const searchInput = document.getElementById("searchInput");
   const sourceFilter = document.getElementById("sourceFilter");
   const statusFilter = document.getElementById("statusFilter");
+  const minPriceFilter = document.getElementById("minPriceFilter");
+  const maxPriceFilter = document.getElementById("maxPriceFilter");
+  const mappedOnlyFilter = document.getElementById("mappedOnlyFilter");
+  const resetFiltersButton = document.getElementById("resetFilters");
+  const postcodeFilter = document.getElementById("postcodeFilter");
+  const postcodeMeta = document.getElementById("postcodeMeta");
+  const visibleCount = document.getElementById("visibleCount");
+  const postcodeSelectAll = document.getElementById("postcodeSelectAll");
+  const postcodeClearAll = document.getElementById("postcodeClearAll");
 
   const sourceColors = {
     immojeune: "#c65b36",
@@ -144,17 +164,83 @@ function bootTable(listings) {
   };
   const mapView = createMap(sourceColors);
 
+  const postcodeCounts = new Map();
+  for (const row of listings) {
+    const postcode = safe(row.postcode).trim() || "__unknown__";
+    postcodeCounts.set(postcode, (postcodeCounts.get(postcode) || 0) + 1);
+  }
+  const postcodeOptions = [...postcodeCounts.entries()]
+    .sort((left, right) => compareValues(left[0], right[0]))
+    .map(([value, count]) => ({
+      value,
+      label: value === "__unknown__" ? "Unknown postcode" : value,
+      count,
+    }));
+
+  let selectedPostcodes = new Set(postcodeOptions.map((option) => option.value));
   let sortKey = "price_eur";
   let sortDirection = "asc";
+
+  function currentRowPostcode(row) {
+    return safe(row.postcode).trim() || "__unknown__";
+  }
+
+  function activePostcodeFilterCount() {
+    return postcodeOptions.length - selectedPostcodes.size;
+  }
+
+  function renderPostcodeFilter() {
+    postcodeFilter.innerHTML = postcodeOptions
+      .map((option) => {
+        const checked = selectedPostcodes.has(option.value) ? "checked" : "";
+        return `
+          <label class="chip-option ${checked ? "active" : ""}">
+            <input type="checkbox" value="${option.value}" ${checked}>
+            <span>${safe(option.label)} <strong>${option.count}</strong></span>
+          </label>
+        `;
+      })
+      .join("");
+
+    const hiddenCount = activePostcodeFilterCount();
+    postcodeMeta.textContent = hiddenCount
+      ? `${selectedPostcodes.size} of ${postcodeOptions.length} postcode groups selected`
+      : `All ${postcodeOptions.length} postcode groups selected`;
+
+    postcodeFilter.querySelectorAll("input[type='checkbox']").forEach((input) => {
+      input.addEventListener("change", (event) => {
+        const value = event.target.value;
+        if (event.target.checked) {
+          selectedPostcodes.add(value);
+        } else {
+          selectedPostcodes.delete(value);
+        }
+        renderPostcodeFilter();
+        render();
+      });
+    });
+  }
 
   function filteredRows() {
     const query = searchInput.value.trim().toLowerCase();
     const source = sourceFilter.value;
     const status = statusFilter.value;
+    const minPrice = minPriceFilter.value === "" ? null : Number(minPriceFilter.value);
+    const maxPrice = maxPriceFilter.value === "" ? null : Number(maxPriceFilter.value);
+    const mappedOnly = mappedOnlyFilter.checked;
 
     return listings.filter((row) => {
       if (source && row.source !== source) return false;
       if (status && safe(row.latest_status).toLowerCase() !== status) return false;
+      if (!selectedPostcodes.has(currentRowPostcode(row))) return false;
+      if (mappedOnly && !(Number.isFinite(row.latitude) && Number.isFinite(row.longitude))) return false;
+
+      if (minPrice !== null || maxPrice !== null) {
+        if (!Number.isFinite(row.price_eur)) return false;
+        if (minPrice !== null && row.price_eur < minPrice) return false;
+        if (maxPrice !== null && row.price_eur > maxPrice) return false;
+      }
+
       if (!query) return true;
       const haystack = [
         row.source,
@@ -198,6 +284,7 @@ function bootTable(listings) {
       )
       .join("");
 
+    visibleCount.textContent = `${rows.length} listing${rows.length === 1 ? "" : "s"} visible`;
     mapView.update(rows);
   }
 
@@ -214,9 +301,38 @@ function bootTable(listings) {
     });
   });
 
+  postcodeSelectAll.addEventListener("click", () => {
+    selectedPostcodes = new Set(postcodeOptions.map((option) => option.value));
+    renderPostcodeFilter();
+    render();
+  });
+
+  postcodeClearAll.addEventListener("click", () => {
+    selectedPostcodes = new Set();
+    renderPostcodeFilter();
+    render();
+  });
+
+  resetFiltersButton.addEventListener("click", () => {
+    searchInput.value = "";
+    sourceFilter.value = "";
+    statusFilter.value = "";
+    minPriceFilter.value = "";
+    maxPriceFilter.value = "";
+    mappedOnlyFilter.checked = false;
+    selectedPostcodes = new Set(postcodeOptions.map((option) => option.value));
+    renderPostcodeFilter();
+    render();
+  });
+
   searchInput.addEventListener("input", render);
   sourceFilter.addEventListener("change", render);
   statusFilter.addEventListener("change", render);
+  minPriceFilter.addEventListener("input", render);
+  maxPriceFilter.addEventListener("input", render);
+  mappedOnlyFilter.addEventListener("change", render);
+
+  renderPostcodeFilter();
   render();
 }
 
@@ -229,6 +345,7 @@ async function main() {
       fetchJson("./data/removed_in_run.json"),
     ]);
     populateSourceFilter(listings);
+    populateStatusFilter(listings);
     setSummary(metadata);
     renderChanges(newRows, removedRows);
     bootTable(listings);

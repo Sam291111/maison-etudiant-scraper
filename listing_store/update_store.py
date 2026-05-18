@@ -53,14 +53,14 @@ HTTP_HEADERS = {
 }
 REMOVAL_CHECK_TIMEOUT_SECONDS = 20
 DEAD_PAGE_PATTERNS = (
-    "404",
-    "page introuvable",
-    "not found",
     "annonce n'est plus disponible",
     "annonce n’est plus disponible",
     "annonce indisponible",
     "listing no longer available",
     "offer no longer available",
+    "cette annonce n'est plus disponible",
+    "cette annonce n’est plus disponible",
+    "this listing is no longer available",
 )
 
 
@@ -234,7 +234,20 @@ def page_content_looks_dead(final_url: str, body: str) -> bool:
     return any(pattern in haystack for pattern in DEAD_PAGE_PATTERNS)
 
 
-def verify_listing_unavailable(url: str) -> tuple[bool, str]:
+def extract_html_title(body: str) -> str:
+    marker_start = body.lower().find("<title")
+    if marker_start == -1:
+        return ""
+    title_start = body.find(">", marker_start)
+    if title_start == -1:
+        return ""
+    title_end = body.lower().find("</title>", title_start)
+    if title_end == -1:
+        return ""
+    return body[title_start + 1 : title_end].strip()
+
+
+def verify_listing_unavailable(url: str) -> tuple[str, str]:
     request = Request(url, headers=HTTP_HEADERS)
     try:
         with urlopen(request, timeout=REMOVAL_CHECK_TIMEOUT_SECONDS) as response:
@@ -243,24 +256,27 @@ def verify_listing_unavailable(url: str) -> tuple[bool, str]:
             body = response.read(200_000).decode("utf-8", errors="replace")
     except HTTPError as exc:
         if exc.code in {404, 410}:
-            return True, f"http_{exc.code}"
-        return False, f"http_{exc.code}"
+            return "confirmed_dead", f"http_{exc.code}"
+        return "live_or_unknown", f"http_{exc.code}"
     except URLError:
-        return False, "network_error"
+        return "live_or_unknown", "network_error"
     except Exception:
-        return False, "check_failed"
+        return "live_or_unknown", "check_failed"
 
     if status_code in {404, 410}:
-        return True, f"http_{status_code}"
-    if page_content_looks_dead(final_url, body):
-        return True, "dead_page_text"
+        return "confirmed_dead", f"http_{status_code}"
+
+    title = extract_html_title(body)
+    title_and_snippet = f"{title}\n{body[:20_000]}"
+    if page_content_looks_dead(final_url, title_and_snippet):
+        return "likely_dead", "dead_page_text"
 
     original_path = urlparse(url).path
     final_path = urlparse(final_url).path
-    if final_path != original_path and page_content_looks_dead(final_url, body):
-        return True, "redirected_dead_page"
+    if final_path != original_path and page_content_looks_dead(final_url, title_and_snippet):
+        return "likely_dead", "redirected_dead_page"
 
-    return False, "live_or_unknown"
+    return "live_or_unknown", "live_or_unknown"
 
 
 def ingest_source_run(
@@ -393,11 +409,15 @@ def ingest_source_run(
         if uid in current_uids:
             continue
         url = json.loads(str(row[2])).get("url") or ""
-        unavailable, check_status = verify_listing_unavailable(url) if url else (False, "missing_url")
+        availability_state, check_status = verify_listing_unavailable(url) if url else ("live_or_unknown", "missing_url")
         missing_count = int(row[5] or 0) + 1
         pending_since = str(row[6]) if row[6] else seen_at
 
-        if unavailable:
+        should_remove = availability_state == "confirmed_dead" or (
+            availability_state == "likely_dead" and missing_count >= 2
+        )
+
+        if should_remove:
             conn.execute(
                 """
                 UPDATE listings
@@ -415,7 +435,7 @@ def ingest_source_run(
             history_status = "removed"
             status_counts["removed"] += 1
         else:
-            latest_status = "missing_but_live" if check_status == "live_or_unknown" else "pending_removal"
+            latest_status = "missing_but_live" if availability_state == "live_or_unknown" else "pending_removal"
             conn.execute(
                 """
                 UPDATE listings

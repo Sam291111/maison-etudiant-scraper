@@ -54,14 +54,48 @@
       </select>
       <select id="statusFilter">
         <option value="">Any status</option>
-        <option value="new">new</option>
-        <option value="updated">updated</option>
-        <option value="unchanged">unchanged</option>
       </select>
       <div class="actions">
         <a class="button" href="./downloads/lyon_master_listings.xlsx">Download XLSX</a>
         <a class="button secondary" href="./downloads/active_listings.csv">Download CSV</a>
         <a class="button secondary" href="./data/active_listings.json">JSON</a>
+      </div>
+    </section>
+
+    <section class="card filter-panel">
+      <div class="section-head">
+        <h2>Dashboard Filters</h2>
+        <p id="visibleCount" class="section-meta">Loading listings…</p>
+      </div>
+      <div class="filter-grid">
+        <label class="filter-field">
+          <span>Minimum Price (EUR)</span>
+          <input id="minPriceFilter" type="number" inputmode="numeric" min="0" placeholder="No minimum">
+        </label>
+        <label class="filter-field">
+          <span>Maximum Price (EUR)</span>
+          <input id="maxPriceFilter" type="number" inputmode="numeric" min="0" placeholder="No maximum">
+        </label>
+        <label class="filter-field checkbox-field">
+          <input id="mappedOnlyFilter" type="checkbox">
+          <span>Only show listings with map coordinates</span>
+        </label>
+        <div class="filter-actions-row">
+          <button id="resetFilters" class="button secondary" type="button">Reset filters</button>
+        </div>
+        <div class="postcode-panel">
+          <div class="postcode-head">
+            <div>
+              <p class="postcode-label">Postcode Filter</p>
+              <p id="postcodeMeta" class="section-meta">Loading postcode options…</p>
+            </div>
+            <div class="postcode-actions">
+              <button id="postcodeSelectAll" class="chip-action" type="button">Select all</button>
+              <button id="postcodeClearAll" class="chip-action" type="button">Clear all</button>
+            </div>
+          </div>
+          <div id="postcodeFilter" class="chip-grid"></div>
+        </div>
       </div>
     </section>
 
