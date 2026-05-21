@@ -1,6 +1,6 @@
 {
-  "pipeline_run_id": 8,
-  "generated_at": "2026-05-20T10:11:11.141222+00:00",
+  "pipeline_run_id": 9,
+  "generated_at": "2026-05-21T10:23:55.619181+00:00",
   "sources_ingested": [
     "immojeune",
     "la_carte_des_colocs",
@@ -9,30 +9,29 @@
   ],
   "status_counts_by_source": {
     "immojeune": {
-      "updated": 100,
-      "unchanged": 26,
-      "new": 19,
-      "missing_but_live": 60
+      "unchanged": 130,
+      "new": 20,
+      "updated": 6,
+      "missing_but_live": 70
     },
     "la_carte_des_colocs": {
-      "updated": 1003,
-      "new": 43,
-      "removed": 27,
-      "missing_but_live": 4
+      "new": 784,
+      "updated": 1008,
+      "removed": 33,
+      "missing_but_live": 10
     },
     "location_etudiant": {
-      "unchanged": 4,
-      "updated": 1
+      "unchanged": 5
     },
     "studapart": {
-      "unchanged": 65,
-      "updated": 93,
-      "new": 8,
-      "missing_but_live": 89
+      "unchanged": 126,
+      "updated": 38,
+      "new": 2,
+      "missing_but_live": 92
     }
   },
-  "active_count": 1515,
-  "new_count": 70,
-  "updated_count": 1197,
-  "removed_count": 27
+  "active_count": 2291,
+  "new_count": 806,
+  "updated_count": 1052,
+  "removed_count": 33
 }
