@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-05-26T10:36:04.319249+00:00",
-  "active_count": 2362,
-  "new_count": 79,
-  "updated_count": 1092,
-  "removed_count": 37,
+  "generated_at": "2026-05-27T10:40:11.868179+00:00",
+  "active_count": 2391,
+  "new_count": 57,
+  "updated_count": 1125,
+  "removed_count": 30,
   "source_counts": {
-    "immojeune": 304,
-    "la_carte_des_colocs": 1736,
+    "immojeune": 314,
+    "la_carte_des_colocs": 1748,
     "location_etudiant": 5,
-    "studapart": 317
+    "studapart": 324
   },
   "summary": {
-    "pipeline_run_id": 14,
-    "generated_at": "2026-05-26T10:36:04.082442+00:00",
+    "pipeline_run_id": 15,
+    "generated_at": "2026-05-27T10:40:11.660782+00:00",
     "sources_ingested": [
       "immojeune",
       "la_carte_des_colocs",
@@ -21,30 +21,30 @@
     ],
     "status_counts_by_source": {
       "immojeune": {
-        "unchanged": 140,
+        "unchanged": 142,
         "updated": 5,
-        "new": 14,
-        "missing_but_live": 145
+        "new": 10,
+        "missing_but_live": 157
       },
       "la_carte_des_colocs": {
-        "updated": 1012,
+        "updated": 1020,
         "new": 40,
-        "removed": 37,
-        "missing_but_live": 684
+        "removed": 30,
+        "missing_but_live": 688
       },
       "location_etudiant": {
         "unchanged": 5
       },
       "studapart": {
-        "unchanged": 67,
-        "updated": 75,
-        "new": 25,
-        "missing_but_live": 150
+        "unchanged": 61,
+        "updated": 100,
+        "new": 7,
+        "missing_but_live": 156
       }
     },
-    "active_count": 2362,
-    "new_count": 79,
-    "updated_count": 1092,
-    "removed_count": 37
+    "active_count": 2391,
+    "new_count": 57,
+    "updated_count": 1125,
+    "removed_count": 30
   }
 }
